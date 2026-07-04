@@ -18,6 +18,8 @@ contract HelperConfig is Script {
     uint256 constant ETH_SEPOLIA_CHAIN_ID = 11155111;
     uint256 constant LOCAL_CHAIN_ID = 31337;
     address constant BURNER_WALLET = 0x6789fb087E2966ee52b707D7187dC4eD673D58C8;
+    address constant FOUNDRY_DEFAULT_WALLET =
+        0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38;
     NetworkConfig public localNetworkConfig;
 
     // Mapping
@@ -32,7 +34,9 @@ contract HelperConfig is Script {
         return getConfigByChainId(block.chainid);
     }
 
-    function getConfigByChainId(uint256 chainId) public returns (NetworkConfig memory) {
+    function getConfigByChainId(
+        uint256 chainId
+    ) public returns (NetworkConfig memory) {
         if (chainId == LOCAL_CHAIN_ID) {
             return getOrCreateAnvilEthConfig();
         } else if (networkConfigs[chainId].account != address(0)) {
@@ -43,13 +47,24 @@ contract HelperConfig is Script {
     }
 
     function getEthSepoliaConfig() public pure returns (NetworkConfig memory) {
-        return NetworkConfig({entryPoint: 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108, account: BURNER_WALLET});
+        return
+            NetworkConfig({
+                entryPoint: 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108,
+                account: BURNER_WALLET
+            });
     }
 
     function getOrCreateAnvilEthConfig() public returns (NetworkConfig memory) {
         if (localNetworkConfig.account != address(0)) {
             return localNetworkConfig;
         }
+
         // deploy mock entryPoint contract....
+
+        return
+            NetworkConfig({
+                entryPoint: address(0),
+                account: FOUNDRY_DEFAULT_WALLET
+            });
     }
 }

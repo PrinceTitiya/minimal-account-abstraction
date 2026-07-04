@@ -11,10 +11,13 @@ import {SIG_VALIDATION_FAILED, SIG_VALIDATION_SUCCESS} from "lib/account-abstrac
 import {IEntryPoint} from "lib/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract MinimalAccount is IAccount, Ownable {
+
+    // custom errors
     error MinimalAccount__NotFromEntryPoint();
     error MinimalAccount__NotFromEntryPointOrOwner();
     error MinimalAcount__CallFailed(bytes);
 
+    // 
     IEntryPoint private immutable i_entryPoint;
 
     modifier requireFromEntryPoint() {
@@ -39,30 +42,35 @@ contract MinimalAccount is IAccount, Ownable {
     receive() external payable {}
 
     // External Functions //
-    function execute(address dest, uint256 value, bytes calldata funcData) external {
+    function execute(
+        address dest,
+        uint256 value,
+        bytes calldata funcData
+    ) external requireFromEntryPointOrOwner {
         (bool success, bytes memory result) = dest.call{value: value}(funcData);
         if (!success) {
             revert MinimalAcount__CallFailed(result);
         }
     }
 
-    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
-        external
-        requireFromEntryPoint
-        returns (uint256 validationData)
-    {
+    function validateUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash,
+        uint256 missingAccountFunds
+    ) external requireFromEntryPoint returns (uint256 validationData) {
         validationData = _validateSignature(userOp, userOpHash);
         _payPrefund(missingAccountFunds);
     }
 
     // internal functions //
     //EIP-191 version of the signed hash
-    function _validateSignature(PackedUserOperation calldata userOp, bytes32 userOpHash)
-        internal
-        view
-        returns (uint256 validationData)
-    {
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
+    function _validateSignature(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash
+    ) internal view returns (uint256 validationData) {
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(
+            userOpHash
+        );
         address signer = ECDSA.recover(ethSignedMessageHash, userOp.signature);
         if (signer != owner()) {
             return SIG_VALIDATION_FAILED;
@@ -72,13 +80,15 @@ contract MinimalAccount is IAccount, Ownable {
 
     function _payPrefund(uint256 missingAccountFunds) internal {
         if (missingAccountFunds != 0) {
-            (bool success,) = payable(msg.sender).call{value: missingAccountFunds, gas: type(uint256).max}("");
+            (bool success, ) = payable(msg.sender).call{
+                value: missingAccountFunds,
+                gas: type(uint256).max
+            }("");
             (success);
         }
     }
 
     // Getter functions //
-
     function getEntryPoint() external view returns (address) {
         return address(i_entryPoint);
     }

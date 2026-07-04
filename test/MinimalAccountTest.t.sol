@@ -5,20 +5,62 @@ import {Test} from "forge-std/Test.sol";
 import {MinimalAccount} from "../src/MinimalAccount.sol";
 import {DeployMinimal} from "../script/deployMinimal.s.sol";
 import {HelperConfig} from "../script/HelperConfig.s.sol";
+import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
 contract MinimalAccountTest is Test {
-    function setUp() public {
-        HelperConfig helperConfig;
-        MinimalAccount minimalAccount;
+    HelperConfig helperConfig;
+    MinimalAccount minimalAccount;
+    ERC20Mock usdc;
+    address randomUser = makeAddr("randomUser");
 
+    uint256 constant AMOUNT = 1e18;
+
+    function setUp() public {
         DeployMinimal deployMinimal = new DeployMinimal();
         (helperConfig, minimalAccount) = deployMinimal.deployMinimalAccount();
+
+        usdc = new ERC20Mock(); // setup mock usdc ERC20 contract
     }
 
-    // USDC Approval
-
-    //msg.sender -> Minimal Account
-    // approve some amount
+    // USDC Mint
+    //msg.sender is owner of Minimal Account
+    // approve some amount/ mint from usdc
     // USDC contract
-    // come from the entrypoint
+    // come from the entrypoint or owner
+
+    function testOwnerCanExecuteCommands() public {
+        // Arrange
+        assertEq(usdc.balanceOf(address(minimalAccount)), 0);
+        address dest = address(usdc);
+        uint256 value = 0;
+        bytes memory functionData = abi.encodeWithSelector(
+            ERC20Mock.mint.selector,
+            address(minimalAccount),
+            AMOUNT
+        );
+        // Act
+        vm.prank(minimalAccount.owner());
+        minimalAccount.execute(dest, value, functionData);
+
+        // Assert
+        assertEq(usdc.balanceOf(address(minimalAccount)), AMOUNT);
+    }
+
+    function testNonOwnerCannotExecuteCommands() public {
+        //Arrange
+        assertEq(usdc.balanceOf(address(minimalAccount)), 0);
+        address dest = address(usdc);
+        uint256 value = 0;
+        bytes memory functionData = abi.encodeWithSelector(
+            ERC20Mock.mint.selector,
+            address(minimalAccount),
+            AMOUNT
+        );
+        // Act
+        vm.prank(randomUser);
+        vm.expectRevert(
+            MinimalAccount.MinimalAccount__NotFromEntryPointOrOwner.selector
+        );
+        minimalAccount.execute(dest, value, functionData);
+    }
 }
