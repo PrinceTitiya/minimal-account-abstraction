@@ -13,39 +13,7 @@ contract SendPackedUserOp is Script {
 
     function run() public {}
 
-    function generateSignedUserOperation(
-        bytes memory callData,
-        HelperConfig.NetworkConfig memory config,
-        address minimalAccount
-    ) public view returns (PackedUserOperation memory) {
-        // 1. First we need to generate an unsigned data/UderOp
-        uint256 nonce = vm.getNonce(minimalAccount) - 1;
-        PackedUserOperation memory userOp = _generateUnsignedUserOperation(
-            callData,
-            minimalAccount,
-            nonce
-        );
-
-        // 2. Get the userOpHash
-        bytes32 userOpHash = IEntryPoint(config.entryPoint).getUserOpHash(
-            userOp
-        );
-        bytes32 digest = userOpHash.toEthSignedMessageHash(); // correctly formated userOpHash
-
-        // 3. Sign the UserOperation by our EOA private_key
-        uint8 v;
-        bytes32 r;
-        bytes32 s;
-        uint256 ANVIL_DEFAULT_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-        if (block.chainid == 31337) {
-            (v, r, s) = vm.sign(ANVIL_DEFAULT_KEY, digest);
-        } else {
-            (v, r, s) = vm.sign(config.account, digest);
-        }
-        userOp.signature = abi.encodePacked(r, s, v); // note the order
-        return userOp;
-    }
-
+    // Helper function to generate an unsigned UserOperation
     function _generateUnsignedUserOperation(
         bytes memory callData,
         address sender,
@@ -71,5 +39,38 @@ contract SendPackedUserOp is Script {
                 paymasterAndData: hex"",
                 signature: hex""
             });
+    }
+
+    function generateSignedUserOperation(
+        bytes memory callData,
+        HelperConfig.NetworkConfig memory config,
+        address minimalAccount
+    ) public view returns (PackedUserOperation memory) {
+        // 1. First we need to generate an unsigned data/UserOp
+        uint256 nonce = vm.getNonce(minimalAccount) - 1;
+        PackedUserOperation memory userOp = _generateUnsignedUserOperation(
+            callData,
+            minimalAccount,
+            nonce
+        );
+
+        // 2. Get the userOpHash
+        bytes32 userOpHash = IEntryPoint(config.entryPoint).getUserOpHash(
+            userOp
+        );
+        bytes32 digest = userOpHash.toEthSignedMessageHash(); // correctly formated userOpHash
+
+        // 3. Sign the UserOperation by our EOA private_key
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        uint256 ANVIL_DEFAULT_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+        if (block.chainid == 31337) {
+            (v, r, s) = vm.sign(ANVIL_DEFAULT_KEY, digest);
+        } else {
+            (v, r, s) = vm.sign(config.account, digest);
+        }
+        userOp.signature = abi.encodePacked(r, s, v); // note the order
+        return userOp;
     }
 }
